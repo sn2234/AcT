@@ -8,5 +8,3 @@ pandas
 PyYAML
 scikit_learn
 scipy
-tensorflow[and-cuda]
-tensorflow_addons

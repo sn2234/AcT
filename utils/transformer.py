@@ -158,9 +158,9 @@ class TransformerEncoder(tf.keras.layers.Layer):
         base_config = super(TransformerEncoder, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    def call(self, x):
+    def call(self, x, training):
         for i in range(self.n_layers):
-            x = self.encoder_layers[i](x)
+            x = self.encoder_layers[i](x, training=training)
 
         return x
 

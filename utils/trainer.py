@@ -11,7 +11,6 @@ from pathlib import Path
 # MACHINE LEARNING LIBRARIES
 import sklearn
 import tensorflow as tf
-import tensorflow_addons as tfa
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 # OPTUNA
@@ -52,7 +51,7 @@ class Trainer:
         x = tf.keras.layers.Dense(self.d_model)(inputs)
         x = PatchClassEmbedding(self.d_model, self.config[self.config['DATASET']]['FRAMES'] // self.config['SUBSAMPLE'], 
                                 pos_emb=None)(x)
-        x = transformer(x)
+        x = transformer(x, training=True)
         x = tf.keras.layers.Lambda(lambda x: x[:,0,:])(x)
         x = tf.keras.layers.Dense(self.mlp_head_size)(x)
         outputs = tf.keras.layers.Dense(self.config[self.config['DATASET']]['CLASSES'])(x)
@@ -63,8 +62,8 @@ class Trainer:
         transformer = TransformerEncoder(self.d_model, self.n_heads, self.d_ff, self.dropout, self.activation, self.n_layers)
         self.model = self.build_act(transformer)
         
-        self.train_steps = np.ceil(float(self.train_len)/self.config['BATCH_SIZE'])
-        self.test_steps = np.ceil(float(self.test_len)/self.config['BATCH_SIZE'])
+        self.train_steps = int(np.ceil(float(self.train_len)/self.config['BATCH_SIZE']))
+        self.test_steps = int(np.ceil(float(self.test_len)/self.config['BATCH_SIZE']))
         
         if self.config['SCHEDULER']:
             lr = CustomSchedule(self.d_model, 
@@ -74,13 +73,13 @@ class Trainer:
         else:
             lr = 3 * 10**self.config['LR_MULT']
         
-        optimizer = tfa.optimizers.AdamW(learning_rate=lr, weight_decay=self.config['WEIGHT_DECAY'])
+        optimizer = tf.keras.optimizers.AdamW(learning_rate=lr, weight_decay=self.config['WEIGHT_DECAY'])
 
         self.model.compile(optimizer=optimizer,
                            loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=0.1),
                            metrics=[tf.keras.metrics.CategoricalAccuracy(name="accuracy")])
 
-        self.name_model_bin = f"{self.config['MODEL_NAME']}_{self.config['MODEL_SIZE']}_{self.split}_{self.fold}.h5"
+        self.name_model_bin = f"{self.config['MODEL_NAME']}_{self.config['MODEL_SIZE']}_{self.split}_{self.fold}.weights.h5"
 
         self.checkpointer = tf.keras.callbacks.ModelCheckpoint(self.bin_path + self.name_model_bin,
                                                                monitor="val_accuracy",
